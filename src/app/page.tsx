@@ -15,7 +15,7 @@ type ProcessedUnit = {
 };
 
 export default function Home() {
-  const [modulePower, setModulePower] = useState<number>(550);
+  const [modulePower, setModulePower] = useState<number | "">("");
   const [projectName, setProjectName] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [successMsg, setSuccessMsg] = useState<string>("");
@@ -111,7 +111,7 @@ export default function Home() {
 
       const dailyCons = monthlyCons / 30;
       const requiredKwp = dailyCons / IRRADIATION;
-      const modulePowerKwp = modulePower / 1000;
+      const modulePowerKwp = Number(modulePower) / 1000;
       const requiredModules = Math.ceil(requiredKwp / modulePowerKwp);
 
       totalKwp += requiredKwp;
@@ -269,7 +269,8 @@ export default function Home() {
                 <input 
                   type="number" 
                   value={modulePower}
-                  onChange={(e) => setModulePower(Number(e.target.value))}
+                  onChange={(e) => setModulePower(e.target.value ? Number(e.target.value) : "")}
+                  placeholder="Ex: 550"
                   className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none bg-white font-mono"
                 />
               </div>

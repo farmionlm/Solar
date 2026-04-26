@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Zap, LayoutGrid, Sun } from "lucide-react";
+import { ArrowLeft, Calendar, Zap, LayoutGrid, Sun, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Project = {
   id: string;
@@ -14,6 +15,14 @@ type Project = {
   _count: {
     units: number;
   };
+  units: {
+    code: string;
+    name: string;
+    monthlyCons: number;
+    dailyCons: number;
+    requiredKwp: number;
+    requiredModules: number;
+  }[];
 };
 
 export default function Historico() {
@@ -38,6 +47,25 @@ export default function Historico() {
         setIsLoading(false);
       });
   }, []);
+
+  const exportToExcel = (project: Project) => {
+    const exportData = [
+      ["Código de Instalação", "Nome da Unidade", "Média Mensal (kWh)", "Consumo Diário (kWh/dia)", "kWp Necessário", "Qtd. Módulos"]
+    ];
+
+    project.units.forEach(u => {
+      exportData.push([u.code, u.name, u.monthlyCons.toString(), u.dailyCons.toString(), u.requiredKwp.toString(), u.requiredModules.toString()]);
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+    worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }];
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Dimensionamento");
+    
+    const fileName = project.name ? project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'projeto';
+    XLSX.writeFile(workbook, `Dimensionamento_${fileName}.xlsx`);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
@@ -113,9 +141,18 @@ export default function Historico() {
                   <span className="text-slate-500 font-medium">
                     {project._count.units} {project._count.units === 1 ? "unidade" : "unidades"}
                   </span>
-                  <span className="text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-md">
-                    {project.modulePower}W
-                  </span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => exportToExcel(project)}
+                      title="Baixar Planilha"
+                      className="p-1 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                    <span className="text-blue-600 font-medium flex items-center bg-blue-50 px-2 py-1 rounded-md">
+                      {project.modulePower}W
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

@@ -47,7 +47,8 @@ export async function GET() {
       include: {
         _count: {
           select: { units: true }
-        }
+        },
+        units: true
       }
     });
 

@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id           String         @id @default(cuid())
+  createdAt    DateTime       @default(now())
+  name         String?        // Opcional, para o usuário identificar o projeto
+  modulePower  Float
+  totalKwp     Float
+  totalModules Int
+
+  units        ConsumerUnit[]
+}
+
+model ConsumerUnit {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  monthlyCons     Float
+  dailyCons       Float
+  requiredKwp     Float
+  requiredModules Int
+
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId       String
+}

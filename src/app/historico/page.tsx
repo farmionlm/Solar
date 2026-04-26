@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Zap, LayoutGrid, Sun, Download } from "lucide-react";
+import { ArrowLeft, Calendar, Zap, LayoutGrid, Sun, Download, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
 type Project = {
@@ -102,6 +102,20 @@ export default function Historico() {
     XLSX.writeFile(workbook, `Dimensionamento_${fileName}.xlsx`);
   };
 
+  const deleteProject = async (id: string) => {
+    if (!confirm("Tem certeza que deseja apagar este projeto do histórico?")) return;
+    
+    try {
+      const res = await fetch(`/api/calculations?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error("Erro ao deletar");
+      
+      setProjects(projects.filter(p => p.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Não foi possível deletar o projeto.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
@@ -183,6 +197,13 @@ export default function Historico() {
                       className="p-1 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors"
                     >
                       <Download className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => deleteProject(project.id)}
+                      title="Apagar Projeto"
+                      className="p-1 text-red-500 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
                     </button>
                     <span className="text-blue-600 font-medium flex items-center bg-blue-50 px-2 py-1 rounded-md">
                       {project.modulePower}W

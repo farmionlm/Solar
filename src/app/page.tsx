@@ -144,20 +144,56 @@ export default function Home() {
   const exportToExcel = () => {
     if (!results) return;
 
-    const exportData = [
+    const projName = projectName || "Dimensionamento Solar";
+    
+    const exportData: any[][] = [
+      ["Relatório de Dimensionamento Fotovoltaico"],
+      ["Projeto:", projName],
+      ["Potência do Módulo:", `${modulePower} W`],
+      ["Total Necessário:", `${results.totalKwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`],
+      ["Total de Módulos:", `${results.totalModules} unid.`],
+      [],
       ["Código de Instalação", "Nome da Escola / Unidade", "Média Mensal (kWh)", "Consumo Diário (kWh/dia)", "kWp Necessário", "Qtd. Módulos"]
     ];
 
     results.units.forEach(u => {
-      exportData.push([u.code, u.name, u.monthlyCons.toString(), u.dailyCons.toString(), u.requiredKwp.toString(), u.requiredModules.toString()]);
+      exportData.push([
+        u.code, 
+        u.name, 
+        u.monthlyCons, 
+        u.dailyCons, 
+        u.requiredKwp, 
+        u.requiredModules
+      ]);
     });
+    
+    // Linha de totalizadores
+    exportData.push([
+      "TOTAL", 
+      "-", 
+      results.units.reduce((acc, u) => acc + u.monthlyCons, 0),
+      results.units.reduce((acc, u) => acc + u.dailyCons, 0),
+      results.totalKwp,
+      results.totalModules
+    ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(exportData);
-    worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }];
+    worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 15 }];
+    
+    // Formatar células numéricas para o Excel entender como número (com 2 casas decimais)
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:F1");
+    for (let R = 6; R <= range.e.r; ++R) {
+      for (let C = 2; C <= 4; ++C) {
+        const cell_ref = XLSX.utils.encode_cell({c:C, r:R});
+        if(worksheet[cell_ref]) worksheet[cell_ref].z = "#,##0.00";
+      }
+      const cell_ref_F = XLSX.utils.encode_cell({c:5, r:R});
+      if(worksheet[cell_ref_F]) worksheet[cell_ref_F].z = "#,##0";
+    }
     
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dimensionamento");
-    XLSX.writeFile(workbook, "Dimensionamento_Solar_Resultados.xlsx");
+    XLSX.writeFile(workbook, `Dimensionamento_${projName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.xlsx`);
   };
 
   const saveToDatabase = async () => {

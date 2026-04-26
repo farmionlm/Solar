@@ -49,21 +49,56 @@ export default function Historico() {
   }, []);
 
   const exportToExcel = (project: Project) => {
-    const exportData = [
+    const projName = project.name || "Projeto_Salvo";
+    
+    const exportData: any[][] = [
+      ["Relatório de Dimensionamento Fotovoltaico"],
+      ["Projeto:", projName],
+      ["Data:", new Date(project.createdAt).toLocaleDateString("pt-BR")],
+      ["Potência do Módulo:", `${project.modulePower} W`],
+      ["Total Necessário:", `${project.totalKwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`],
+      ["Total de Módulos:", `${project.totalModules} unid.`],
+      [],
       ["Código de Instalação", "Nome da Unidade", "Média Mensal (kWh)", "Consumo Diário (kWh/dia)", "kWp Necessário", "Qtd. Módulos"]
     ];
 
     project.units.forEach(u => {
-      exportData.push([u.code, u.name, u.monthlyCons.toString(), u.dailyCons.toString(), u.requiredKwp.toString(), u.requiredModules.toString()]);
+      exportData.push([
+        u.code, 
+        u.name, 
+        u.monthlyCons, 
+        u.dailyCons, 
+        u.requiredKwp, 
+        u.requiredModules
+      ]);
     });
 
+    exportData.push([
+      "TOTAL", 
+      "-", 
+      project.units.reduce((acc, u) => acc + u.monthlyCons, 0),
+      project.units.reduce((acc, u) => acc + u.dailyCons, 0),
+      project.totalKwp,
+      project.totalModules
+    ]);
+
     const worksheet = XLSX.utils.aoa_to_sheet(exportData);
-    worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }];
+    worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 15 }];
+    
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:F1");
+    for (let R = 7; R <= range.e.r; ++R) {
+      for (let C = 2; C <= 4; ++C) {
+        const cell_ref = XLSX.utils.encode_cell({c:C, r:R});
+        if(worksheet[cell_ref]) worksheet[cell_ref].z = "#,##0.00";
+      }
+      const cell_ref_F = XLSX.utils.encode_cell({c:5, r:R});
+      if(worksheet[cell_ref_F]) worksheet[cell_ref_F].z = "#,##0";
+    }
     
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dimensionamento");
     
-    const fileName = project.name ? project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'projeto';
+    const fileName = projName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     XLSX.writeFile(workbook, `Dimensionamento_${fileName}.xlsx`);
   };
 

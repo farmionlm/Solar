@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Zap, LayoutGrid, Sun, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Zap, LayoutGrid, Sun, Download, Trash2, Users, Home } from "lucide-react";
 import * as XLSX from "xlsx";
 
 type Project = {
@@ -23,6 +23,15 @@ type Project = {
     requiredKwp: number;
     requiredModules: number;
   }[];
+  client?: {
+    name: string;
+    cpfCnpj: string | null;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    moduleModel: string | null;
+    inverterModel: string | null;
+  } | null;
 };
 
 export default function Historico() {
@@ -50,15 +59,30 @@ export default function Historico() {
 
   const exportToExcel = (project: Project) => {
     const projName = project.name || "Projeto_Salvo";
+    const client = project.client;
     
     const exportData: any[][] = [
-      ["Relatório de Dimensionamento Fotovoltaico"],
-      ["Projeto:", projName],
-      ["Data:", new Date(project.createdAt).toLocaleDateString("pt-BR")],
-      ["Potência do Módulo:", `${project.modulePower} W`],
-      ["Total Necessário:", `${project.totalKwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`],
-      ["Total de Módulos:", `${project.totalModules} unid.`],
+      ["RELATÓRIO DE DIMENSIONAMENTO FOTOVOLTAICO"],
       [],
+      ["1. DADOS DO CLIENTE"],
+      ["Nome:", client?.name || "Não informado"],
+      ["CPF/CNPJ:", client?.cpfCnpj || "-"],
+      ["Telefone:", client?.phone || "-"],
+      ["E-mail:", client?.email || "-"],
+      ["Endereço:", client?.address || "-"],
+      [],
+      ["2. EQUIPAMENTOS SUGERIDOS"],
+      ["Modelo do Módulo:", client?.moduleModel || "Não definido"],
+      ["Modelo do Inversor:", client?.inverterModel || "Não definido"],
+      ["Potência do Módulo Base:", `${project.modulePower} W`],
+      [],
+      ["3. RESUMO DO PROJETO"],
+      ["Nome do Projeto:", projName],
+      ["Data de Criação:", new Date(project.createdAt).toLocaleDateString("pt-BR")],
+      ["Potência Total Necessária:", `${project.totalKwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWp`],
+      ["Quantidade de Módulos:", `${project.totalModules} unid.`],
+      [],
+      ["4. DETALHAMENTO POR UNIDADE"],
       ["Código de Instalação", "Nome da Unidade", "Média Mensal (kWh)", "Consumo Diário (kWh/dia)", "kWp Necessário", "Qtd. Módulos"]
     ];
 
@@ -74,7 +98,7 @@ export default function Historico() {
     });
 
     exportData.push([
-      "TOTAL", 
+      "TOTAL CONSOLIDADO", 
       "-", 
       project.units.reduce((acc, u) => acc + u.monthlyCons, 0),
       project.units.reduce((acc, u) => acc + u.dailyCons, 0),
@@ -83,10 +107,22 @@ export default function Historico() {
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(exportData);
-    worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 15 }];
+    
+    // Ajuste de largura das colunas
+    worksheet["!cols"] = [
+      { wch: 25 }, // Código
+      { wch: 45 }, // Nome
+      { wch: 20 }, // Média
+      { wch: 22 }, // Diário
+      { wch: 20 }, // kWp
+      { wch: 15 }  // Módulos
+    ];
     
     const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:F1");
-    for (let R = 7; R <= range.e.r; ++R) {
+    
+    // Formatação de números
+    const dataStartRow = 22; // Linha 23 (base 0 é 22)
+    for (let R = dataStartRow; R <= range.e.r; ++R) {
       for (let C = 2; C <= 4; ++C) {
         const cell_ref = XLSX.utils.encode_cell({c:C, r:R});
         if(worksheet[cell_ref]) worksheet[cell_ref].z = "#,##0.00";
@@ -99,7 +135,7 @@ export default function Historico() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dimensionamento");
     
     const fileName = projName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    XLSX.writeFile(workbook, `Dimensionamento_${fileName}.xlsx`);
+    XLSX.writeFile(workbook, `Projeto_${fileName}.xlsx`);
   };
 
   const deleteProject = async (id: string) => {
@@ -125,14 +161,25 @@ export default function Historico() {
               <HistoryIcon className="w-8 h-8" />
             </div>
             <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Link href="/" className="flex items-center gap-1 text-slate-500 font-medium hover:underline text-xs">
+                  <Home className="w-3 h-3" /> Início
+                </Link>
+              </div>
               <h1 className="text-3xl font-bold tracking-tight text-slate-900">Histórico de Projetos</h1>
               <p className="text-slate-500 font-medium">Seus dimensionamentos salvos</p>
             </div>
           </div>
-          <Link href="/" className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all shadow-sm">
-            <ArrowLeft className="w-5 h-5" />
-            Nova Simulação
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/clientes" className="flex items-center gap-2 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all shadow-sm">
+              <Users className="w-5 h-5" />
+              Clientes
+            </Link>
+            <Link href="/" className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all shadow-sm">
+              <ArrowLeft className="w-5 h-5" />
+              Nova Simulação
+            </Link>
+          </div>
         </header>
 
         {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 border border-red-100 font-medium">{error}</div>}

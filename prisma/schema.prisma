@@ -6,36 +6,17 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-
-model Client {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  name      String
-  cpfCnpj   String?
-  phone     String?
-  email     String?
-  address   String?
-
-  projects  Project[]
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
 }
 
 model Project {
   id           String         @id @default(cuid())
   createdAt    DateTime       @default(now())
-  name         String?
+  name         String?        // Opcional, para o usuário identificar o projeto
   modulePower  Float
   totalKwp     Float
   totalModules Int
-  
-  // Equipamentos vinculados ao projeto
-  moduleModel   String?
-  inverterModel String?
-
-  clientId     String?
-  client       Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   units        ConsumerUnit[]
 }

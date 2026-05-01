@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
-import { Home } from "lucide-react";
 import "./globals.css";
-
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,19 +27,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        {children}
-        <Link 
-          href="/" 
-          className="fixed bottom-6 right-6 bg-slate-800 text-white p-4 rounded-full shadow-2xl hover:bg-blue-600 transition-all z-50 group active:scale-90"
-          title="Início"
-        >
-          <Home className="w-6 h-6" />
-          <span className="absolute right-full mr-3 bg-slate-800 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            Voltar ao Início
-          </span>
-        </Link>
-      </body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

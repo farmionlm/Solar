@@ -6,27 +6,11 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, modulePower, totalKwp, totalModules, units, clientId, clientData, moduleModel, inverterModel } = body;
+    const { name, modulePower, totalKwp, totalModules, units } = body;
 
     // Validate request
     if (!modulePower || !totalKwp || !totalModules || !units || !Array.isArray(units)) {
       return NextResponse.json({ error: 'Dados incompletos ou inválidos.' }, { status: 400 });
-    }
-
-    // Se recebeu dados de novo cliente, cria o cliente primeiro
-    let resolvedClientId = clientId || null;
-
-    if (!resolvedClientId && clientData && clientData.name?.trim()) {
-      const newClient = await prisma.client.create({
-        data: {
-          name: clientData.name.trim(),
-          cpfCnpj: clientData.cpfCnpj?.trim() || null,
-          phone: clientData.phone?.trim() || null,
-          email: clientData.email?.trim() || null,
-          address: clientData.address?.trim() || null,
-        }
-      });
-      resolvedClientId = newClient.id;
     }
 
     // Save to database
@@ -36,9 +20,6 @@ export async function POST(request: Request) {
         modulePower,
         totalKwp,
         totalModules,
-        moduleModel: moduleModel || null,
-        inverterModel: inverterModel || null,
-        clientId: resolvedClientId,
         units: {
           create: units.map((unit: any) => ({
             code: String(unit.code),
@@ -52,7 +33,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, project, clientId: resolvedClientId }, { status: 201 });
+    return NextResponse.json({ success: true, project }, { status: 201 });
   } catch (error) {
     console.error('Erro ao salvar projeto:', error);
     return NextResponse.json({ error: 'Erro interno ao salvar no banco de dados.' }, { status: 500 });
@@ -67,8 +48,7 @@ export async function GET() {
         _count: {
           select: { units: true }
         },
-        units: true,
-        client: true
+        units: true
       }
     });
 
@@ -96,29 +76,5 @@ export async function DELETE(request: Request) {
   } catch (error) {
     console.error('Erro ao deletar projeto:', error);
     return NextResponse.json({ error: 'Erro interno ao deletar.' }, { status: 500 });
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const body = await request.json();
-    const { id, moduleModel, inverterModel } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: 'ID do projeto é obrigatório.' }, { status: 400 });
-    }
-
-    const project = await prisma.project.update({
-      where: { id },
-      data: {
-        moduleModel: moduleModel?.trim() || null,
-        inverterModel: inverterModel?.trim() || null,
-      }
-    });
-
-    return NextResponse.json(project);
-  } catch (error) {
-    console.error('Erro ao atualizar projeto:', error);
-    return NextResponse.json({ error: 'Erro interno ao atualizar.' }, { status: 500 });
   }
 }

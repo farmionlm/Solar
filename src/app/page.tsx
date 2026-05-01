@@ -1,10 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useState } from "react";
 import * as XLSX from "xlsx";
 import Link from "next/link";
-import { Sun, History, Upload, Save, Download, Users, ChevronDown, ChevronUp, Zap, ArrowLeft } from "lucide-react";
+import { Sun, History, Upload, Save, Download } from "lucide-react";
 
 type ProcessedUnit = {
   code: string;
@@ -15,18 +14,7 @@ type ProcessedUnit = {
   requiredModules: number;
 };
 
-type ClientData = {
-  name: string;
-  cpfCnpj: string;
-  phone: string;
-  email: string;
-  address: string;
-};
-
-function HomeContent() {
-  const searchParams = useSearchParams();
-  const clientId = searchParams.get("clientId");
-
+export default function Home() {
   const [modulePower, setModulePower] = useState<number | "">("");
   const [projectName, setProjectName] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -34,39 +22,12 @@ function HomeContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showClientForm, setShowClientForm] = useState(false);
-  const [preSelectedClient, setPreSelectedClient] = useState<{ id: string, name: string } | null>(null);
-
-  const [clientData, setClientData] = useState<ClientData>({
-    name: "", cpfCnpj: "", phone: "", email: "", address: ""
-  });
 
   const [results, setResults] = useState<{
     units: ProcessedUnit[];
     totalKwp: number;
     totalModules: number;
   } | null>(null);
-
-  useEffect(() => {
-    if (clientId) {
-      fetch(`/api/clients/${clientId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.name) {
-            setPreSelectedClient({ id: data.id, name: data.name });
-            setClientData({
-              name: data.name,
-              cpfCnpj: data.cpfCnpj || "",
-              phone: data.phone || "",
-              email: data.email || "",
-              address: data.address || ""
-            });
-            setShowClientForm(true);
-          }
-        })
-        .catch(err => console.error("Erro ao buscar cliente pré-selecionado", err));
-    }
-  }, [clientId]);
 
   const processFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
@@ -156,14 +117,25 @@ function HomeContent() {
       totalKwp += requiredKwp;
       totalModules += requiredModules;
 
-      processedUnits.push({ code, name, monthlyCons, dailyCons, requiredKwp, requiredModules });
+      processedUnits.push({
+        code,
+        name,
+        monthlyCons,
+        dailyCons,
+        requiredKwp,
+        requiredModules,
+      });
     }
 
     if (processedUnits.length === 0) {
       setError("Nenhum dado numérico válido de consumo foi encontrado.");
       setResults(null);
     } else {
-      setResults({ units: processedUnits, totalKwp, totalModules });
+      setResults({
+        units: processedUnits,
+        totalKwp,
+        totalModules,
+      });
     }
     
     setIsProcessing(false);
@@ -185,19 +157,30 @@ function HomeContent() {
     ];
 
     results.units.forEach(u => {
-      exportData.push([u.code, u.name, u.monthlyCons, u.dailyCons, u.requiredKwp, u.requiredModules]);
+      exportData.push([
+        u.code, 
+        u.name, 
+        u.monthlyCons, 
+        u.dailyCons, 
+        u.requiredKwp, 
+        u.requiredModules
+      ]);
     });
     
+    // Linha de totalizadores
     exportData.push([
-      "TOTAL", "-",
+      "TOTAL", 
+      "-", 
       results.units.reduce((acc, u) => acc + u.monthlyCons, 0),
       results.units.reduce((acc, u) => acc + u.dailyCons, 0),
-      results.totalKwp, results.totalModules
+      results.totalKwp,
+      results.totalModules
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(exportData);
     worksheet["!cols"] = [{ wch: 20 }, { wch: 40 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 15 }];
     
+    // Formatar células numéricas para o Excel entender como número (com 2 casas decimais)
     const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:F1");
     for (let R = 6; R <= range.e.r; ++R) {
       for (let C = 2; C <= 4; ++C) {
@@ -219,30 +202,22 @@ function HomeContent() {
     setError("");
 
     try {
-      const payload: any = {
-        name: projectName || 'Projeto sem nome',
-        modulePower,
-        totalKwp: results.totalKwp,
-        totalModules: results.totalModules,
-        units: results.units,
-        clientId: preSelectedClient?.id || null
-      };
-
-      // Se tem dados de cliente preenchidos, envia junto
-      if (clientData.name.trim()) {
-        payload.clientData = clientData;
-      }
-
       const res = await fetch('/api/calculations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          name: projectName || 'Projeto sem nome',
+          modulePower,
+          totalKwp: results.totalKwp,
+          totalModules: results.totalModules,
+          units: results.units
+        })
       });
 
       if (!res.ok) throw new Error('Falha ao salvar');
       
       setSaved(true);
-      setSuccessMsg("Projeto salvo com sucesso!" + (clientData.name.trim() ? ` Cliente "${clientData.name}" vinculado.` : ""));
+      setSuccessMsg("Projeto salvo com sucesso no banco de dados!");
     } catch (err) {
       setError("Ocorreu um erro ao tentar salvar o projeto.");
     } finally {
@@ -263,16 +238,10 @@ function HomeContent() {
               <p className="text-slate-500 font-medium">Dimensionamento Fotovoltaico Inteligente</p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Link href="/clientes" className="flex items-center gap-2 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all shadow-sm">
-              <Users className="w-5 h-5" />
-              Clientes
-            </Link>
-            <Link href="/historico" className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all shadow-sm">
-              <History className="w-5 h-5" />
-              Histórico
-            </Link>
-          </div>
+          <Link href="/historico" className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-semibold transition-all shadow-sm">
+            <History className="w-5 h-5" />
+            Ver Histórico
+          </Link>
         </header>
 
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden mb-8">
@@ -283,18 +252,6 @@ function HomeContent() {
             
             {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 border border-red-100 font-medium">{error}</div>}
             {successMsg && <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl mb-6 border border-emerald-100 font-medium">{successMsg}</div>}
-
-            {preSelectedClient && (
-              <div className="bg-violet-50 text-violet-700 p-4 rounded-xl mb-6 border border-violet-100 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  <span className="font-medium">Vinculando este projeto ao cliente: <strong>{preSelectedClient.name}</strong></span>
-                </div>
-                <Link href={`/clientes/${preSelectedClient.id}`} className="text-sm font-bold hover:underline flex items-center gap-1">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Cliente
-                </Link>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -338,7 +295,9 @@ function HomeContent() {
             <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 opacity-10"><Sun className="w-32 h-32" /></div>
+                  <div className="absolute -right-4 -top-4 opacity-10">
+                    <Sun className="w-32 h-32" />
+                  </div>
                   <h3 className="text-slate-400 font-medium mb-1 relative z-10">Módulo Base</h3>
                   <div className="text-4xl font-bold relative z-10">{modulePower} <span className="text-xl text-slate-400 font-normal">W</span></div>
                 </div>
@@ -352,60 +311,21 @@ function HomeContent() {
                 </div>
               </div>
 
-              {/* Formulário de Cliente */}
-              <div className="mb-6 border border-slate-200 rounded-2xl overflow-hidden">
-                <button
-                  onClick={() => setShowClientForm(!showClientForm)}
-                  className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-purple-50 hover:from-violet-100 hover:to-purple-100 transition-all"
-                >
-                  <span className="flex items-center gap-2 font-semibold text-slate-700">
-                    <Users className="w-5 h-5 text-violet-600" />
-                    Vincular Cliente (Opcional)
-                  </span>
-                  {showClientForm ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
-                </button>
-                {showClientForm && (
-                  <div className="p-5 bg-white border-t border-slate-100">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">Nome do Cliente *</label>
-                        <input type="text" value={clientData.name} onChange={(e) => setClientData({...clientData, name: e.target.value})}
-                          placeholder="Ex: João da Silva" className="w-full p-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all outline-none" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">CPF / CNPJ</label>
-                        <input type="text" value={clientData.cpfCnpj} onChange={(e) => setClientData({...clientData, cpfCnpj: e.target.value})}
-                          placeholder="000.000.000-00" className="w-full p-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all outline-none" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">Telefone</label>
-                        <input type="text" value={clientData.phone} onChange={(e) => setClientData({...clientData, phone: e.target.value})}
-                          placeholder="(00) 00000-0000" className="w-full p-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all outline-none" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">E-mail</label>
-                        <input type="email" value={clientData.email} onChange={(e) => setClientData({...clientData, email: e.target.value})}
-                          placeholder="email@exemplo.com" className="w-full p-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all outline-none" />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">Endereço / Cidade</label>
-                        <input type="text" value={clientData.address} onChange={(e) => setClientData({...clientData, address: e.target.value})}
-                          placeholder="Rua, Nº - Cidade/UF" className="w-full p-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all outline-none" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <div className="flex flex-wrap gap-4 mb-6">
-                <button onClick={exportToExcel}
-                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 active:scale-95">
-                  <Download className="w-5 h-5" /> Exportar Planilha
+                <button 
+                  onClick={exportToExcel}
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 active:scale-95"
+                >
+                  <Download className="w-5 h-5" />
+                  Exportar Planilha
                 </button>
-                <button onClick={saveToDatabase} disabled={isSaving || saved}
+                <button 
+                  onClick={saveToDatabase}
+                  disabled={isSaving || saved}
                   className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all shadow-md active:scale-95 ${
                     saved ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30'
-                  }`}>
+                  }`}
+                >
                   <Save className="w-5 h-5" />
                   {isSaving ? "Salvando..." : saved ? "Projeto Salvo!" : "Salvar no Histórico"}
                 </button>
@@ -444,13 +364,5 @@ function HomeContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center">Carregando...</div>}>
-      <HomeContent />
-    </Suspense>
   );
 }
